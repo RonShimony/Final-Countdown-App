@@ -18,6 +18,8 @@ Then open `http://localhost:8123` in a browser. The server (`serve.js`) is a min
 
 To test real iPhone install behavior (Add to Home Screen, standalone mode, offline via the service worker), the app must be served over HTTPS — `localhost` only satisfies the browser's PWA installability requirements on the machine running the server itself, not from another device. Deploy the static files as-is to any static host (GitHub Pages, Netlify, Vercel, etc.) for that.
 
+**Note for Claude Code sessions:** the Bash/PowerShell tool shell can run in an environment isolated from the user's real, visible browser session (a sandbox). If the user reports "can't reach localhost" after `node serve.js` is started via a tool call, don't assume the server is broken — start it with `dangerouslyDisableSandbox: true`, or simpler, have the user open their own PowerShell window (address bar → type `powershell` in File Explorer) and run `node serve.js` themselves, leaving that window open.
+
 ## Architecture
 
 Everything is wired together through native ES modules — no bundler, no transpilation:
@@ -29,7 +31,7 @@ Everything is wired together through native ES modules — no bundler, no transp
 - **`js/app.js`** — the entry point / glue. Wires the add/edit form, delegated click handling on the event list (to open a card for editing), color-swatch selection, and drives the live-updating UI with `setInterval(refresh, 1000)` — **a full re-render every second**, not an incremental DOM patch. This is intentional given the small expected list size; don't reach for a diffing/virtual-DOM approach here without a reason.
 - **`sw.js`** — a hand-rolled cache-first service worker precaching a fixed `ASSETS` list. **Any new static file added to the app (new JS module, new icon, etc.) must be added to `ASSETS` in `sw.js` and the cache name (`CACHE_NAME`) bumped, or it won't be picked up for offline use / existing installs won't see the update.**
 - **`manifest.webmanifest`** — standalone display, portrait orientation, dark theme colors, icons.
-- **`icons/`** — PNG icons at 180/192/512px. These were generated programmatically (flat-color clock glyph drawn pixel-by-pixel, hand-encoded as PNG via Node's `zlib`) rather than sourced from design assets — there is no source image to re-export from if these need to change; regenerate with a similar pixel-drawing approach or replace with real artwork.
+- **`icons/`** — PNG icons at 180/192/512px: a metallic hourglass on a dark starfield. Generated programmatically (vector shapes drawn with .NET `System.Drawing`/GDI+ via a throwaway PowerShell script — gradients for the glass, `PathGradientBrush` glow for the 4 corner stars, rendered at 512px then downscaled) rather than sourced from design assets. There is no source image or design file — to change the icon, either write a similar draw script (rendered at 512 then downscaled to 180/192 for crisp edges) or replace all three PNGs with real artwork of matching dimensions.
 
 ### Data model
 ```js
@@ -49,3 +51,12 @@ Dates are always stored as full ISO UTC strings (`Date.prototype.toISOString()`)
 
 - No dependencies, no bundler, no TypeScript — keep additions to plain JS/CSS/HTML that runs unmodified in Safari on iOS.
 - Module boundaries matter: date math stays in `countdown.js` (no DOM), storage stays in `storage.js` (no rendering), `render.js` builds DOM but never touches `localStorage` directly. Keep new logic in the module that matches its concern rather than adding cross-cutting code to `app.js`.
+
+## Status
+
+Git repo is initialized locally (not yet pushed to any remote). Core app (add/edit/delete events, countdown + count-up display, yearly recurrence, PWA install, offline service worker) is built and working, tested locally via `node serve.js`. The app icon is finalized (hourglass-on-starfield, see `icons/` note above).
+
+Not yet done / discussed but not started:
+- Deploying to a real HTTPS static host so it can actually be installed on the user's iPhone (currently only tested via `localhost` on the dev PC).
+
+The user mentioned wanting to add more features in a future session but hadn't specified which yet — ask them what's next rather than assuming.
