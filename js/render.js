@@ -3,7 +3,7 @@
 // draws), but it never reads or writes localStorage directly - it's only
 // given data and a container element to fill in.
 
-import { getNextOccurrence, diff, formatClock, formatDaysLabel, getUnitBreakdown } from './countdown.js';
+import { getNextOccurrence, diff, formatClock, formatDaysLabel, getUnitBreakdown, getYearPercentage } from './countdown.js';
 
 // Safely inserts user-typed text into HTML without allowing it to be
 // interpreted as HTML/script tags (this is what prevents an XSS attack via
@@ -136,6 +136,7 @@ export function renderDetail(container, event, now = new Date()) {
   const target = getNextOccurrence(event, now);
   const d = diff(target, now);
   const units = getUnitBreakdown(d.totalMs);
+  const yearPercent = getYearPercentage(d.totalMs);
   const verb = d.isFuture ? 'remaining' : 'ago';
 
   const emoji = event.emoji
@@ -167,5 +168,6 @@ export function renderDetail(container, event, now = new Date()) {
   unitsList.appendChild(unitRow('Days', units.days, verb));
   unitsList.appendChild(unitRow('Hours', units.hours, verb));
   unitsList.appendChild(unitRow('Minutes', units.minutes, verb));
+  unitsList.appendChild(unitRow('% of Year', `${yearPercent}%`, verb));
   container.appendChild(unitsList);
 }

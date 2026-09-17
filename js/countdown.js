@@ -9,6 +9,7 @@ const MS_PER_DAY = 86400000;
 const MS_PER_WEEK = MS_PER_DAY * 7;
 const MS_PER_YEAR = MS_PER_DAY * 365.25; // 365.25 averages in leap years
 const MS_PER_MONTH = MS_PER_YEAR / 12;
+const MS_PER_COMMON_YEAR = MS_PER_DAY * 365; // a "common year" is exactly 365 days (no leap-year averaging)
 
 // Given an event, figures out the next date/time it should count down (or
 // up) to. `now` defaults to the current moment, but can be passed in
@@ -75,6 +76,16 @@ export function getUnitBreakdown(totalMs) {
     hours: round1(abs / MS_PER_HOUR),
     minutes: round1(abs / MS_PER_MINUTE),
   };
+}
+
+// Used by the detail view's "% of common year" row. Expresses the span as
+// a percentage of a 365-day common year (e.g. exactly 6 months is ~half of
+// 365 days, so this returns "50.00"). Returned as a string (not a number)
+// so trailing zeros are never dropped - toFixed(2) always gives exactly
+// two decimal places, which Math.round wouldn't guarantee (e.g. 50 vs 50.00).
+export function getYearPercentage(totalMs) {
+  const abs = Math.abs(totalMs);
+  return ((abs / MS_PER_COMMON_YEAR) * 100).toFixed(2);
 }
 
 // Pads a single number to 2 digits with a leading zero (5 -> "05").
