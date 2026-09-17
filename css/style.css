@@ -32,6 +32,9 @@ body {
 }
 
 .app-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 12px 20px 4px;
 }
 
@@ -193,7 +196,9 @@ body {
 }
 
 .field input[type="text"],
-.field input[type="datetime-local"] {
+.field input[type="datetime-local"],
+.field input[type="number"],
+.field select {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -284,11 +289,22 @@ body {
   padding: 10px 16px;
 }
 
+.detail-view__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
 .detail-view__content {
   max-width: 480px;
   margin: 0 auto;
   padding: 0 20px;
   --accent: #4dabf7;
+}
+
+.menu-btn {
+  flex: 0 0 auto;
+  padding: 10px 16px;
 }
 
 .detail-header {
@@ -371,4 +387,104 @@ body {
     border-radius: 20px;
     bottom: 24px;
   }
+}
+
+/* Nav drawer sits above every other layer in the app (detail-view = 5,
+   sheet-backdrop = 10, sheet = 11) since it's a global menu that can be
+   opened from any top-level page. */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 20;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 21;
+  width: 260px;
+  max-width: 80vw;
+  background: var(--surface);
+  padding: calc(20px + env(safe-area-inset-top)) 16px 20px calc(16px + env(safe-area-inset-left));
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+  /* Off-screen by default; app.js toggles .is-open to slide it in. This is
+     the only transition/transform animation in the app - everything else
+     appears/disappears instantly via the `hidden` attribute. */
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+}
+
+.drawer.is-open {
+  transform: translateX(0);
+}
+
+.drawer__title {
+  font-size: 18px;
+  margin: 0 0 20px;
+}
+
+.drawer__links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.drawer__link {
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 10px;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.drawer__link:active {
+  background: var(--surface-2);
+}
+
+.toggle-group {
+  display: flex;
+  gap: 8px;
+}
+
+.toggle-btn {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.toggle-btn.is-selected {
+  background: #4dabf7;
+  color: #0b0d12;
+  border-color: #4dabf7;
+}
+
+.result-box {
+  margin-top: 24px;
+  text-align: center;
+  padding: 24px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.result-box__label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.result-box__value {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }

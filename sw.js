@@ -14,7 +14,7 @@
 // bumped (e.g. 'final-countdown-v2') - otherwise browsers that already
 // installed this service worker will keep serving the old cached files
 // forever and never see the update (see CLAUDE.md).
-const CACHE_NAME = 'final-countdown-v3';
+const CACHE_NAME = 'final-countdown-v5';
 
 // Every file the app needs to keep working fully offline. Anything not
 // listed here won't be available offline (and won't be updated

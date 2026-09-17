@@ -119,42 +119,38 @@ export function renderEvents(container, events, now = new Date()) {
   }
 }
 
-// One row of the detail view's unit-only timer list, e.g. "Years  0.6 remaining".
-function unitRow(label, value, verb) {
+// One row of the detail view's unit-only timer list, e.g. "Years  0.6
+// remaining". `verb` is optional ('' by default) - the date-to-date
+// calculator has no "remaining"/"ago" framing since both dates are picked
+// by the user rather than compared to "now", so it omits it entirely
+// rather than leaving a trailing space.
+function unitRow(label, value, verb = '') {
   const el = document.createElement('div');
   el.className = 'detail-unit';
+  const valueText = verb ? `${value} ${verb}` : `${value}`;
   el.innerHTML = `
     <span class="detail-unit__label">${label}</span>
-    <span class="detail-unit__value">${value} ${verb}</span>
+    <span class="detail-unit__value">${valueText}</span>
   `;
   return el;
 }
 
-// Fills the event detail view (opened by tapping a card) with the event's
-// info plus the classic D/H/M/S timer and the six unit-only timers.
-export function renderDetail(container, event, now = new Date()) {
-  const target = getNextOccurrence(event, now);
-  const d = diff(target, now);
+// Appends the shared "big countdown" markup used by both the event detail
+// view and the date-to-date calculator: the classic big-number-days +
+// HH:MM:SS clock, then the six unit-only rows (years/months/weeks/days/
+// hours/minutes) plus a "% of Year" row. `d` is a diff() result; `verb` is
+// "remaining"/"ago" for the event detail view, or omitted for the
+// date-to-date calculator. Does NOT clear `container` first - callers
+// decide what else (like a title) goes in before this.
+export function appendTimeBreakdown(container, d, verb = '') {
   const units = getUnitBreakdown(d.totalMs);
   const yearPercent = getYearPercentage(d.totalMs);
-  const verb = d.isFuture ? 'remaining' : 'ago';
-
-  const emoji = event.emoji
-    ? `<span class="detail-emoji">${escapeHtml(event.emoji)}</span>`
-    : '';
-
-  container.innerHTML = '';
-  container.style.setProperty('--accent', event.color);
 
   container.insertAdjacentHTML('beforeend', `
-    <div class="detail-header">
-      ${emoji}
-      <h2 class="detail-title">${escapeHtml(event.title)}</h2>
-    </div>
     <div class="detail-classic">
       <div class="detail-classic__days">
         <span class="detail-classic__num">${d.days}</span>
-        <span class="detail-classic__unit">${formatDaysLabel(d)} ${verb}</span>
+        <span class="detail-classic__unit">${formatDaysLabel(d)}${verb ? ' ' + verb : ''}</span>
       </div>
       <div class="detail-classic__clock">${formatClock(d)}</div>
     </div>
@@ -170,4 +166,44 @@ export function renderDetail(container, event, now = new Date()) {
   unitsList.appendChild(unitRow('Minutes', units.minutes, verb));
   unitsList.appendChild(unitRow('% of Year', `${yearPercent}%`, verb));
   container.appendChild(unitsList);
+}
+
+// Fills the event detail view (opened by tapping a card) with the event's
+// info plus the classic D/H/M/S timer and the six unit-only timers.
+export function renderDetail(container, event, now = new Date()) {
+  const target = getNextOccurrence(event, now);
+  const d = diff(target, now);
+  const verb = d.isFuture ? 'remaining' : 'ago';
+
+  const emoji = event.emoji
+    ? `<span class="detail-emoji">${escapeHtml(event.emoji)}</span>`
+    : '';
+
+  container.innerHTML = '';
+  container.style.setProperty('--accent', event.color);
+
+  container.insertAdjacentHTML('beforeend', `
+    <div class="detail-header">
+      ${emoji}
+      <h2 class="detail-title">${escapeHtml(event.title)}</h2>
+    </div>
+  `);
+
+  appendTimeBreakdown(container, d, verb);
+}
+
+// Fills the date-to-date calculator's output with the elapsed time between
+// two arbitrary user-picked dates, reusing the exact same breakdown markup
+// as the event detail view (see appendTimeBreakdown above). There's no
+// "now" involved here - both dates are fixed once picked - so there's no
+// natural "remaining" vs "ago" framing. Instead this always measures
+// forward from whichever date is chronologically earlier to whichever is
+// later, so the result is always non-negative, and omits the verb.
+export function renderDateDiff(container, fromDate, toDate) {
+  container.innerHTML = '';
+  const [earlier, later] = fromDate.getTime() <= toDate.getTime()
+    ? [fromDate, toDate]
+    : [toDate, fromDate];
+  const d = diff(later, earlier);
+  appendTimeBreakdown(container, d);
 }

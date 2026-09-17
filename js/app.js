@@ -5,7 +5,8 @@
 // button clicks and form handling for the UI.
 
 import { getEvents, saveEvent, deleteEvent, createEventId } from './storage.js';
-import { renderEvents, renderDetail } from './render.js';
+import { renderEvents, renderDetail, renderDateDiff } from './render.js';
+import { addToDate, formatDateTime } from './countdown.js';
 
 // Grab references to all the DOM elements we'll need to interact with.
 // Doing this once at the top (instead of re-querying the DOM every time)
@@ -27,6 +28,29 @@ const detailContent = document.getElementById('detail-content');
 const detailBackBtn = document.getElementById('detail-back-btn');
 const detailEditBtn = document.getElementById('detail-edit-btn');
 
+// --- Nav drawer (hamburger menu) ---
+const appHeader = document.getElementById('app-header');
+// Every top-level page's header has its own hamburger button (same class,
+// all open the same drawer) - see the "menu-btn" class in index.html.
+const menuBtns = Array.from(document.querySelectorAll('.menu-btn'));
+const drawer = document.getElementById('drawer');
+const drawerBackdrop = document.getElementById('drawer-backdrop');
+const drawerLinks = document.querySelector('.drawer__links');
+
+// --- Date-to-date calculator page ---
+const dateDiffView = document.getElementById('date-diff-view');
+const diffFromField = document.getElementById('diff-from');
+const diffToField = document.getElementById('diff-to');
+const diffOutput = document.getElementById('diff-output');
+
+// --- Add/subtract calculator page ---
+const addSubtractView = document.getElementById('add-subtract-view');
+const asBaseDateField = document.getElementById('as-base-date');
+const asDirectionButtons = Array.from(document.querySelectorAll('#as-direction .toggle-btn'));
+const asAmountField = document.getElementById('as-amount');
+const asUnitField = document.getElementById('as-unit');
+const asResult = document.getElementById('as-result');
+
 // Fall back to the first swatch's color if, for some reason, no swatches
 // exist in the DOM (defensive default, shouldn't normally happen).
 const DEFAULT_COLOR = swatches[0]?.dataset.color || '#4dabf7';
@@ -40,6 +64,9 @@ let editingId = null;
 let selectedColor = DEFAULT_COLOR;
 // id of the event currently shown in the detail view, or null when closed.
 let detailEventId = null;
+// 'add' or 'subtract' - which direction the add/subtract calculator is
+// currently set to.
+let asDirection = 'add';
 
 // Pads a single number to 2 digits with a leading zero (5 -> "05").
 function pad(n) {
@@ -94,6 +121,28 @@ function closeDetail() {
   detailEventId = null;
 }
 
+// Shows exactly one of the three top-level pages (event list, date-to-date
+// calculator, add/subtract calculator) and hides the other two. This is
+// the multi-page generalization of the openDetail/closeDetail toggle above
+// - the per-event detail view and the edit sheet stay separate, layered
+// overlays regardless of which top-level page is active underneath them.
+function showPage(page) {
+  appHeader.hidden = page !== 'events';
+  list.hidden = page !== 'events';
+  dateDiffView.hidden = page !== 'date-diff';
+  addSubtractView.hidden = page !== 'add-subtract';
+}
+
+function openDrawer() {
+  drawerBackdrop.hidden = false;
+  drawer.classList.add('is-open');
+}
+
+function closeDrawer() {
+  drawerBackdrop.hidden = true;
+  drawer.classList.remove('is-open');
+}
+
 // Opens the bottom-sheet form, either blank (for a new event, when
 // `event` is null) or pre-filled with an existing event's data (to edit
 // it). This same form/markup is reused for both add and edit, rather than
@@ -125,7 +174,78 @@ function closeSheet() {
   editingId = null;
 }
 
+// Recomputes the date-to-date calculator's output from its two date
+// fields. Called on every keystroke/change to those fields - there's no
+// "Calculate" submit button, and this is deliberately NOT part of the
+// setInterval(refresh, 1000) loop below, since the result is fixed once
+// both dates are picked (nothing here needs to tick live).
+function refreshDateDiff() {
+  if (!diffFromField.value || !diffToField.value) {
+    diffOutput.innerHTML = '<p class="empty-state">Pick both dates to see the difference.</p>';
+    return;
+  }
+  renderDateDiff(diffOutput, new Date(diffFromField.value), new Date(diffToField.value));
+}
+
+// Flips which direction (Add/Subtract) the add/subtract calculator uses.
+function setDirection(direction) {
+  asDirection = direction;
+  asDirectionButtons.forEach((btn) => {
+    btn.classList.toggle('is-selected', btn.dataset.direction === direction);
+  });
+  refreshAddSubtract();
+}
+
+// Years/months are calendar-discrete (addToDate in js/countdown.js rolls
+// them by whole calendar months), so fractional amounts don't make sense
+// for those units - but weeks/days/hours/minutes are plain millisecond
+// spans, where a fractional amount (e.g. 2.5 days) is exact. Flip the
+// amount field's step to match the selected unit so the browser's numeric
+// spinner nudges by the right increment.
+function updateAmountStep() {
+  const wholeUnitsOnly = asUnitField.value === 'years' || asUnitField.value === 'months';
+  asAmountField.step = wholeUnitsOnly ? '1' : 'any';
+}
+
+// Recomputes the add/subtract calculator's result date. Same "no live
+// ticking, recompute on input" approach as refreshDateDiff above.
+function refreshAddSubtract() {
+  updateAmountStep();
+  const rawAmount = parseFloat(asAmountField.value);
+  if (!asBaseDateField.value || Number.isNaN(rawAmount)) {
+    asResult.textContent = '';
+    return;
+  }
+  const base = new Date(asBaseDateField.value);
+  const signedAmount = asDirection === 'subtract' ? -rawAmount : rawAmount;
+  const result = addToDate(base, signedAmount, asUnitField.value);
+  asResult.textContent = formatDateTime(result);
+}
+
 // --- Event listeners: wiring up user interactions ---
+
+// Every top-level page's hamburger button opens the same drawer.
+menuBtns.forEach((btn) => btn.addEventListener('click', openDrawer));
+drawerBackdrop.addEventListener('click', closeDrawer);
+
+// Delegated click handling on the drawer's link list, same pattern as the
+// event list's card clicks below.
+drawerLinks.addEventListener('click', (e) => {
+  const link = e.target.closest('.drawer__link');
+  if (!link) return;
+  showPage(link.dataset.page);
+  closeDrawer();
+});
+
+diffFromField.addEventListener('input', refreshDateDiff);
+diffToField.addEventListener('input', refreshDateDiff);
+
+asDirectionButtons.forEach((btn) => {
+  btn.addEventListener('click', () => setDirection(btn.dataset.direction));
+});
+asBaseDateField.addEventListener('input', refreshAddSubtract);
+asAmountField.addEventListener('input', refreshAddSubtract);
+asUnitField.addEventListener('change', refreshAddSubtract);
 
 addBtn.addEventListener('click', () => openSheet(null));
 cancelBtn.addEventListener('click', closeSheet);
@@ -196,6 +316,10 @@ deleteBtn.addEventListener('click', () => {
   refresh();
   closeSheet();
 });
+
+// Default the add/subtract calculator's base date to "now".
+asBaseDateField.value = toLocalInputValue(new Date());
+refreshAddSubtract();
 
 // Draw the list immediately on page load...
 refresh();

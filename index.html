@@ -33,7 +33,8 @@
 </head>
 <body>
 
-<header class="app-header">
+<header id="app-header" class="app-header">
+  <button type="button" class="btn btn--ghost menu-btn" aria-label="Menu">☰</button>
   <h1>Final Countdown</h1>
 </header>
 
@@ -42,6 +43,77 @@
      empty in the markup. aria-live="polite" tells screen readers to
      announce content changes here without interrupting the user. -->
 <main id="event-list" class="event-list" aria-live="polite"></main>
+
+<!-- Date-to-date calculator: pick two arbitrary dates, see the elapsed
+     time between them rendered with the same breakdown as the event
+     detail view (see renderDateDiff in js/render.js). This is a
+     stateless calculator - nothing here is saved to localStorage. Reuses
+     the .detail-view CSS class (full-bleed page + centered content
+     column) rather than inventing a new layout. -->
+<div id="date-diff-view" class="detail-view" hidden>
+  <div class="detail-view__header">
+    <button type="button" class="btn btn--ghost menu-btn" aria-label="Menu">☰</button>
+    <h2 class="detail-view__title">Date to Date</h2>
+  </div>
+  <div class="detail-view__content">
+    <label class="field">
+      <span>From</span>
+      <input type="datetime-local" id="diff-from" name="from">
+    </label>
+    <label class="field">
+      <span>To</span>
+      <input type="datetime-local" id="diff-to" name="to">
+    </label>
+    <div id="diff-output" aria-live="polite"></div>
+  </div>
+</div>
+
+<!-- Add/subtract calculator: takes a base date/time, an amount, a unit,
+     and a direction, and shows the resulting exact date/time (not a
+     breakdown - see addToDate in js/countdown.js for the calendar-correct
+     year/month math). Also stateless - nothing here is saved. -->
+<div id="add-subtract-view" class="detail-view" hidden>
+  <div class="detail-view__header">
+    <button type="button" class="btn btn--ghost menu-btn" aria-label="Menu">☰</button>
+    <h2 class="detail-view__title">Add/Subtract</h2>
+  </div>
+  <div class="detail-view__content">
+    <label class="field">
+      <span>Base date &amp; time</span>
+      <input type="datetime-local" id="as-base-date" name="baseDate">
+    </label>
+
+    <div class="field field--row">
+      <span>Direction</span>
+      <div id="as-direction" class="toggle-group" role="radiogroup" aria-label="Direction">
+        <button type="button" class="toggle-btn is-selected" data-direction="add">Add</button>
+        <button type="button" class="toggle-btn" data-direction="subtract">Subtract</button>
+      </div>
+    </div>
+
+    <label class="field">
+      <span>Amount</span>
+      <input type="number" id="as-amount" name="amount" value="1" step="1">
+    </label>
+
+    <label class="field">
+      <span>Unit</span>
+      <select id="as-unit" name="unit">
+        <option value="years">Years</option>
+        <option value="months">Months</option>
+        <option value="weeks">Weeks</option>
+        <option value="days" selected>Days</option>
+        <option value="hours">Hours</option>
+        <option value="minutes">Minutes</option>
+      </select>
+    </label>
+
+    <div class="result-box">
+      <span class="result-box__label">Result</span>
+      <span id="as-result" class="result-box__value"></span>
+    </div>
+  </div>
+</div>
 
 <!-- Full-screen detail view, opened by tapping a card (see app.js). Its
      content (title, timers) is rebuilt each open/tick by renderDetail in
@@ -119,6 +191,23 @@
     <button type="submit" class="btn btn--primary">Save</button>
   </div>
 </form>
+
+<!-- Dimmed overlay behind the slide-in nav drawer; clicking it closes the
+     drawer, same pattern as #sheet-backdrop above. -->
+<div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+
+<!-- The slide-in side drawer (hamburger menu). Unlike the other overlays
+     in this file, this is toggled via a CSS class (.is-open) instead of
+     the `hidden` attribute, because `hidden` sets display:none, which
+     would prevent the slide transition from animating. -->
+<nav id="drawer" class="drawer" aria-label="Main menu">
+  <h2 class="drawer__title">Final Countdown</h2>
+  <div class="drawer__links">
+    <button type="button" class="drawer__link" data-page="events">Events</button>
+    <button type="button" class="drawer__link" data-page="date-diff">Date to Date</button>
+    <button type="button" class="drawer__link" data-page="add-subtract">Add/Subtract</button>
+  </div>
+</nav>
 
 <!-- type="module" loads app.js as a native ES module (enabling `import`/
      `export` between the js/ files with no bundler). Modules are also

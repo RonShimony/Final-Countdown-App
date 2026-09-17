@@ -88,6 +88,67 @@ export function getYearPercentage(totalMs) {
   return ((abs / MS_PER_COMMON_YEAR) * 100).toFixed(2);
 }
 
+// Adds N whole months to a date, preserving day-of-month where possible and
+// clamping to the last valid day of the target month when it doesn't exist
+// there (e.g. Jan 31 + 1 month -> Feb 28/29, never an overflowed March
+// date). N may be negative (going backwards). Internal helper for
+// addToDate() below - callers should always go through addToDate with an
+// explicit unit rather than calling this directly.
+function addMonths(date, n) {
+  const result = new Date(date.getTime());
+  const originalDay = result.getDate();
+
+  // Jump to the 1st of the month BEFORE changing the month. If we were
+  // still sitting on e.g. the 31st when setMonth() runs, and the target
+  // month is shorter than 31 days, setMonth() would silently overflow into
+  // the following month (the classic "Jan 31 + 1 month = March 3" bug).
+  // Starting from day 1 sidesteps that entirely.
+  result.setDate(1);
+  result.setMonth(result.getMonth() + n);
+
+  // Clamp the day back to whatever the target month can actually hold.
+  // `new Date(year, month + 1, 0)` is a standard trick: day 0 of the
+  // following month is the last day of the target month.
+  const daysInTargetMonth = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+  result.setDate(Math.min(originalDay, daysInTargetMonth));
+
+  return result;
+}
+
+// Adds (or subtracts, if `amount` is negative) a quantity of a given unit
+// to a date, returning a NEW Date - `date` itself is never mutated. Used by
+// the add/subtract calculator page.
+//
+// Years and months are calendar-correct (see addMonths above) rather than
+// using the fixed-average MS_PER_YEAR/MS_PER_MONTH constants above - those
+// are right for describing the SIZE of a span (getUnitBreakdown), but wrong
+// for arithmetic on one specific calendar date. Weeks/days/hours/minutes
+// are unambiguous spans of milliseconds, so those are added directly and
+// exactly (2.5 days really is exactly 60 hours) - no calendar ambiguity to
+// resolve there, unlike years/months.
+//
+// There's no separate "subtract" mode: callers negate `amount` themselves
+// for subtraction, keeping this function's job to just one thing - add a
+// (possibly negative) quantity.
+export function addToDate(date, amount, unit) {
+  switch (unit) {
+    case 'years':
+      return addMonths(date, amount * 12);
+    case 'months':
+      return addMonths(date, amount);
+    case 'weeks':
+      return new Date(date.getTime() + amount * MS_PER_WEEK);
+    case 'days':
+      return new Date(date.getTime() + amount * MS_PER_DAY);
+    case 'hours':
+      return new Date(date.getTime() + amount * MS_PER_HOUR);
+    case 'minutes':
+      return new Date(date.getTime() + amount * MS_PER_MINUTE);
+    default:
+      throw new Error(`addToDate: unknown unit "${unit}"`);
+  }
+}
+
 // Pads a single number to 2 digits with a leading zero (5 -> "05").
 // Used so the clock always looks like "03:07:09" instead of "3:7:9".
 const pad = (n) => String(n).padStart(2, '0');
@@ -101,4 +162,14 @@ export function formatClock(d) {
 // grammar (e.g. "1 day" vs "2 days").
 export function formatDaysLabel(d) {
   return d.days === 1 ? 'day' : 'days';
+}
+
+// Formats a Date as "DD/MM/YYYY HH:MM:SS" - used by the add/subtract
+// calculator's result. Built by hand (rather than date.toLocaleString(),
+// which follows the browser's locale and can come out MM/DD/YYYY) so the
+// date order is always DD/MM/YYYY no matter which browser/OS this runs on.
+export function formatDateTime(date) {
+  const datePart = `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+  const timePart = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return `${datePart} ${timePart}`;
 }
